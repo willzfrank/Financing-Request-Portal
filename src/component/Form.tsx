@@ -4,7 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import { AppContext } from '../store/context'
-import { financingSchema, OPEC_COUNTRIES } from '../utils/Contants'
+import { financingSchema, OPEC_COUNTRIES } from '../utils/Constants'
 
 export type FinancingFormValues = {
   name: string
