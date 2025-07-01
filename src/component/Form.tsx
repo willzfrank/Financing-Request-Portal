@@ -4,7 +4,15 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import { AppContext } from '../store/context'
-import { financingSchema, OPEC_COUNTRIES } from '../utils/Constants'
+import {
+  financingSchema,
+  OPEC_COUNTRIES,
+  VALIDITY_PERIOD,
+  FORM_LIMITS,
+  API_ENDPOINTS,
+  getMinStartDate,
+  calculateValidityPeriod,
+} from '../utils/Constants'
 
 export type FinancingFormValues = {
   name: string
@@ -21,11 +29,10 @@ const FinancingForm = () => {
   const context = useContext(AppContext)
   const countries = context?.countries || []
   const currencies = context?.currencies || {}
+  const isLoading = context?.isLoading || false
 
-  // Calculate minimum start date (15 days from today)
-  const minStartDate = new Date(Date.now() + 1296000000)
-    .toISOString()
-    .split('T')[0]
+  // Use the constant-based minimum start date
+  const minStartDate = getMinStartDate()
 
   const [isOpec, setIsOpec] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -49,14 +56,31 @@ const FinancingForm = () => {
     }
   }, [selectedCountry, setValue])
 
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto p-4">
+        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-300">
+              Loading form data...
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const onSubmit = async (data: FinancingFormValues) => {
     setIsSubmitting(true)
 
     try {
-      // Calculate validity period in years
-      const startDate = new Date(data.startDate)
-      const endDate = new Date(data.endDate)
-      const validityPeriod = endDate.getFullYear() - startDate.getFullYear()
+      // Use consistent dayjs calculation for validity period
+      const validityPeriod = calculateValidityPeriod(
+        data.startDate,
+        data.endDate
+      )
 
       // Transform data for API
       const apiData = {
@@ -67,23 +91,67 @@ const FinancingForm = () => {
         amount: data.amount,
         currency: data.currency,
         date: data.startDate,
-        validityPeriod: validityPeriod,
+        validityPeriod: Math.round(validityPeriod), // Round to nearest year
       }
 
-      await axios.post(
-        'http://test-noema-api.azurewebsites.net/api/requests',
-        apiData
-      )
+      await axios.post(API_ENDPOINTS.REQUESTS, apiData)
 
       toast.success('Financing request submitted successfully!')
       reset()
       setIsOpec(false) // Reset OPEC state as well
     } catch (error: unknown) {
       console.error('Submission error:', error)
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to submit request. Please try again.'
+
+      // Improved error handling with specific error messages
+      let errorMessage = 'Failed to submit request. Please try again.'
+
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // Server responded with error status
+          const status = error.response.status
+          const data = error.response.data
+
+          switch (status) {
+            case 400:
+              errorMessage =
+                'Invalid request data. Please check your information and try again.'
+              break
+            case 401:
+              errorMessage =
+                'Authentication required. Please log in and try again.'
+              break
+            case 403:
+              errorMessage =
+                'Access denied. You do not have permission to submit this request.'
+              break
+            case 409:
+              errorMessage =
+                'A request with this project code already exists. Please use a different project code.'
+              break
+            case 422:
+              errorMessage =
+                'Validation error. Please check your form data and try again.'
+              break
+            case 500:
+              errorMessage = 'Server error. Please try again later.'
+              break
+            default:
+              errorMessage =
+                data?.message || `Server error (${status}). Please try again.`
+          }
+        } else if (error.request) {
+          // Network error
+          errorMessage =
+            'Network error. Please check your internet connection and try again.'
+        } else {
+          // Other error
+          errorMessage =
+            error.message || 'An unexpected error occurred. Please try again.'
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
       toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -156,8 +224,10 @@ const FinancingForm = () => {
               placeholder="Enter your full name"
               aria-describedby="name-error"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.name ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.name
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('name')}
             />
@@ -184,8 +254,10 @@ const FinancingForm = () => {
               id="country"
               aria-describedby="country-error"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.country ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.country
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('country')}
             >
@@ -228,8 +300,10 @@ const FinancingForm = () => {
               placeholder="e.g., ABCD-1234"
               aria-describedby="projectCode-error projectCode-help"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.projectCode ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.projectCode
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('projectCode')}
             />
@@ -259,11 +333,13 @@ const FinancingForm = () => {
               id="description"
               placeholder="Describe your financing request"
               rows={3}
-              maxLength={150}
+              maxLength={FORM_LIMITS.DESCRIPTION_MAX_LENGTH}
               aria-describedby="description-error description-counter"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.description ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.description
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('description')}
             />
@@ -277,7 +353,8 @@ const FinancingForm = () => {
               </p>
             )}
             <p id="description-counter" className="mt-1 text-xs text-gray-500">
-              {watch('description')?.length || 0}/150 characters
+              {watch('description')?.length || 0}/
+              {FORM_LIMITS.DESCRIPTION_MAX_LENGTH} characters
             </p>
           </div>
         </fieldset>
@@ -304,8 +381,10 @@ const FinancingForm = () => {
               placeholder="Enter amount"
               aria-describedby="amount-error"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.amount ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.amount
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('amount', { valueAsNumber: true })}
             />
@@ -336,7 +415,7 @@ const FinancingForm = () => {
                   value="USD"
                   disabled
                   aria-describedby="currency-help"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 transition-colors duration-200"
                 />
                 <p id="currency-help" className="text-sm text-gray-500">
                   USD is automatically selected for OPEC member countries
@@ -347,8 +426,10 @@ const FinancingForm = () => {
                 id="currency"
                 aria-describedby="currency-error"
                 aria-required="true"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.currency ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.currency
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-300 focus:border-blue-500'
                 }`}
                 {...register('currency')}
               >
@@ -392,8 +473,10 @@ const FinancingForm = () => {
               min={minStartDate}
               aria-describedby="startDate-error startDate-help"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.startDate ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.startDate
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('startDate')}
             />
@@ -407,7 +490,8 @@ const FinancingForm = () => {
               </p>
             )}
             <p id="startDate-help" className="mt-1 text-xs text-gray-500">
-              You can only select a start date at least 15 days from today.
+              You can only select a start date at least{' '}
+              {VALIDITY_PERIOD.MIN_DAYS_FROM_NOW} days from today.
             </p>
           </div>
 
@@ -424,8 +508,10 @@ const FinancingForm = () => {
               type="date"
               aria-describedby="endDate-error endDate-help"
               aria-required="true"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.endDate ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.endDate
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 focus:border-blue-500'
               }`}
               {...register('endDate')}
             />
@@ -439,7 +525,8 @@ const FinancingForm = () => {
               </p>
             )}
             <p id="endDate-help" className="mt-1 text-xs text-gray-500">
-              Validity period must be between 1-3 years
+              Validity period must be between {VALIDITY_PERIOD.MIN_YEARS}-
+              {VALIDITY_PERIOD.MAX_YEARS} years
             </p>
           </div>
         </fieldset>
@@ -449,10 +536,10 @@ const FinancingForm = () => {
           type="submit"
           disabled={isSubmitting || !isValid}
           aria-describedby="submit-status"
-          className={`w-full py-3 px-4 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          className={`w-full py-3 px-4 rounded-md font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
             isSubmitting || !isValid
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              ? 'bg-gray-400 text-gray-600'
+              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
           }`}
         >
           {isSubmitting ? 'Submitting...' : 'Submit Financing Request'}

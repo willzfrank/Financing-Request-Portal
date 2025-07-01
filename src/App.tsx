@@ -40,7 +40,7 @@ function App() {
       <button
         onClick={toggleDarkMode}
         aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
-        className="fixed top-4 right-4 p-2 rounded-md bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 z-40"
+        className="fixed top-4 right-4 p-2 rounded-md bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 z-40"
       >
         {isDarkMode ? (
           <svg
