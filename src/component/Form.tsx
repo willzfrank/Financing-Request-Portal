@@ -77,6 +77,7 @@ const FinancingForm = () => {
 
       toast.success('Financing request submitted successfully!')
       reset()
+      setIsOpec(false) // Reset OPEC state as well
     } catch (error: unknown) {
       console.error('Submission error:', error)
       const errorMessage =
@@ -89,11 +90,25 @@ const FinancingForm = () => {
     }
   }
 
+  // Live region for form validation announcements
+  const hasErrors = Object.keys(errors).length > 0
+
   return (
     <div className="max-w-2xl mx-auto p-4">
+      {/* Live region for form validation announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {hasErrors &&
+          `Form has ${Object.keys(errors).length} validation error${
+            Object.keys(errors).length > 1 ? 's' : ''
+          }`}
+        {!hasErrors && isValid && 'Form is valid and ready to submit'}
+      </div>
+
       <form
         className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 space-y-6"
         onSubmit={handleSubmit(onSubmit)}
+        aria-label="Financing Request Form"
+        noValidate
       >
         {/* Toaster for notifications */}
         <Toaster
@@ -121,202 +136,320 @@ const FinancingForm = () => {
           }}
         />
 
-        {/* Name/Surname */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Name/Surname *
-          </label>
-          <input
-            type="text"
-            placeholder="Enter your full name"
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.name ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('name')}
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
+        {/* Personal Information Section */}
+        <fieldset className="space-y-6">
+          <legend className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Personal Information
+          </legend>
 
-        {/* Country */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Origin Country *
-          </label>
-          <select
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.country ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('country')}
-          >
-            <option value="">Select Country</option>
-            {countries.map((c: { label: string; value: string }) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          {errors.country && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.country.message}
-            </p>
-          )}
-        </div>
-
-        {/* Project Code */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Project Code *
-          </label>
-          <input
-            type="text"
-            placeholder="e.g., ABCD-1234"
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.projectCode ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('projectCode')}
-          />
-          {errors.projectCode && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.projectCode.message}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            Format: XXXX-XXXX (4 capital letters, hyphen, 4 digits 1-9)
-          </p>
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Description *
-          </label>
-          <textarea
-            placeholder="Describe your financing request"
-            rows={3}
-            maxLength={150}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.description ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('description')}
-          />
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.description.message}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            {watch('description')?.length || 0}/150 characters
-          </p>
-        </div>
-
-        {/* Amount */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Payment Amount *
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Enter amount"
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.amount ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('amount', { valueAsNumber: true })}
-          />
-          {errors.amount && (
-            <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
-          )}
-        </div>
-
-        {/* Currency */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Currency *
-          </label>
-          {isOpec ? (
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value="USD"
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-              />
-            </div>
-          ) : (
-            <select
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.currency ? 'border-red-500' : 'border-gray-300'
-              }`}
-              {...register('currency')}
+          {/* Name/Surname */}
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
-              <option value="">Select Currency</option>
-              {Object.entries(currencies).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {code} - {String(name)}
+              Name/Surname *
+            </label>
+            <input
+              id="name"
+              type="text"
+              placeholder="Enter your full name"
+              aria-describedby="name-error"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('name')}
+            />
+            {errors.name && (
+              <p
+                id="name-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.name.message}
+              </p>
+            )}
+          </div>
+
+          {/* Country */}
+          <div>
+            <label
+              htmlFor="country"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Origin Country *
+            </label>
+            <select
+              id="country"
+              aria-describedby="country-error"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.country ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('country')}
+            >
+              <option value="">Select Country</option>
+              {countries.map((c: { label: string; value: string }) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>
-          )}
-          {errors.currency && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.currency.message}
-            </p>
-          )}
-        </div>
+            {errors.country && (
+              <p
+                id="country-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.country.message}
+              </p>
+            )}
+          </div>
+        </fieldset>
 
-        {/* Start Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Start Date *
-          </label>
-          <input
-            type="date"
-            min={minStartDate}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.startDate ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('startDate')}
-          />
-          {errors.startDate && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.startDate.message}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            You can only select a start date at least 15 days from today.
-          </p>
-        </div>
+        {/* Project Information Section */}
+        <fieldset className="space-y-6">
+          <legend className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Project Information
+          </legend>
 
-        {/* End Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            End Date *
-          </label>
-          <input
-            type="date"
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.endDate ? 'border-red-500' : 'border-gray-300'
-            }`}
-            {...register('endDate')}
-          />
-          {errors.endDate && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.endDate.message}
+          {/* Project Code */}
+          <div>
+            <label
+              htmlFor="projectCode"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Project Code *
+            </label>
+            <input
+              id="projectCode"
+              type="text"
+              placeholder="e.g., ABCD-1234"
+              aria-describedby="projectCode-error projectCode-help"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.projectCode ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('projectCode')}
+            />
+            {errors.projectCode && (
+              <p
+                id="projectCode-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.projectCode.message}
+              </p>
+            )}
+            <p id="projectCode-help" className="mt-1 text-xs text-gray-500">
+              Format: XXXX-XXXX (4 capital letters, hyphen, 4 digits 1-9)
             </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            Validity period must be between 1-3 years
-          </p>
-        </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Description *
+            </label>
+            <textarea
+              id="description"
+              placeholder="Describe your financing request"
+              rows={3}
+              maxLength={150}
+              aria-describedby="description-error description-counter"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.description ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('description')}
+            />
+            {errors.description && (
+              <p
+                id="description-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.description.message}
+              </p>
+            )}
+            <p id="description-counter" className="mt-1 text-xs text-gray-500">
+              {watch('description')?.length || 0}/150 characters
+            </p>
+          </div>
+        </fieldset>
+
+        {/* Financial Information Section */}
+        <fieldset className="space-y-6">
+          <legend className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Financial Information
+          </legend>
+
+          {/* Amount */}
+          <div>
+            <label
+              htmlFor="amount"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Payment Amount *
+            </label>
+            <input
+              id="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Enter amount"
+              aria-describedby="amount-error"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.amount ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('amount', { valueAsNumber: true })}
+            />
+            {errors.amount && (
+              <p
+                id="amount-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.amount.message}
+              </p>
+            )}
+          </div>
+
+          {/* Currency */}
+          <div>
+            <label
+              htmlFor="currency"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Currency *
+            </label>
+            {isOpec ? (
+              <div className="flex items-center space-x-2">
+                <input
+                  id="currency"
+                  type="text"
+                  value="USD"
+                  disabled
+                  aria-describedby="currency-help"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                />
+                <p id="currency-help" className="text-sm text-gray-500">
+                  USD is automatically selected for OPEC member countries
+                </p>
+              </div>
+            ) : (
+              <select
+                id="currency"
+                aria-describedby="currency-error"
+                aria-required="true"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.currency ? 'border-red-500' : 'border-gray-300'
+                }`}
+                {...register('currency')}
+              >
+                <option value="">Select Currency</option>
+                {Object.entries(currencies).map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {code} - {String(name)}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.currency && (
+              <p
+                id="currency-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.currency.message}
+              </p>
+            )}
+          </div>
+        </fieldset>
+
+        {/* Validity Period Section */}
+        <fieldset className="space-y-6">
+          <legend className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Validity Period
+          </legend>
+
+          {/* Start Date */}
+          <div>
+            <label
+              htmlFor="startDate"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Start Date *
+            </label>
+            <input
+              id="startDate"
+              type="date"
+              min={minStartDate}
+              aria-describedby="startDate-error startDate-help"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.startDate ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('startDate')}
+            />
+            {errors.startDate && (
+              <p
+                id="startDate-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.startDate.message}
+              </p>
+            )}
+            <p id="startDate-help" className="mt-1 text-xs text-gray-500">
+              You can only select a start date at least 15 days from today.
+            </p>
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label
+              htmlFor="endDate"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              End Date *
+            </label>
+            <input
+              id="endDate"
+              type="date"
+              aria-describedby="endDate-error endDate-help"
+              aria-required="true"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.endDate ? 'border-red-500' : 'border-gray-300'
+              }`}
+              {...register('endDate')}
+            />
+            {errors.endDate && (
+              <p
+                id="endDate-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.endDate.message}
+              </p>
+            )}
+            <p id="endDate-help" className="mt-1 text-xs text-gray-500">
+              Validity period must be between 1-3 years
+            </p>
+          </div>
+        </fieldset>
 
         {/* Submit Button */}
         <button
           type="submit"
           disabled={isSubmitting || !isValid}
-          className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
+          aria-describedby="submit-status"
+          className={`w-full py-3 px-4 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
             isSubmitting || !isValid
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -324,6 +457,10 @@ const FinancingForm = () => {
         >
           {isSubmitting ? 'Submitting...' : 'Submit Financing Request'}
         </button>
+
+        <div id="submit-status" className="sr-only" aria-live="polite">
+          {isSubmitting ? 'Form is being submitted' : 'Form is ready to submit'}
+        </div>
       </form>
     </div>
   )
