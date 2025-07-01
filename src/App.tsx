@@ -74,7 +74,7 @@ function App() {
           </h1>
           <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Submit your financing request with a validity period between 1-3
-            years. Start date must be at least 15 days from today.
+            years. Start date must be at least 15 days from July 1st, 2025.
           </p>
         </header>
 

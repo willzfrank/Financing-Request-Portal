@@ -22,6 +22,9 @@ export const API_ENDPOINTS = {
   CURRENCIES: 'https://openexchangerates.org/api/currencies.json',
 } as const
 
+// Fixed submission date - July 1st, 2025
+export const SUBMISSION_DATE = '2025-07-01' as const
+
 export const OPEC_COUNTRIES = [
   'DZ', // Algeria
   'AO', // Angola
@@ -38,9 +41,12 @@ export const OPEC_COUNTRIES = [
   'VE', // Venezuela
 ]
 
-// Helper function to calculate minimum start date
+// Helper function to calculate minimum start date from fixed submission date
 export const getMinStartDate = (): string => {
-  const minDate = dayjs().add(VALIDITY_PERIOD.MIN_DAYS_FROM_NOW, 'day')
+  const minDate = dayjs(SUBMISSION_DATE).add(
+    VALIDITY_PERIOD.MIN_DAYS_FROM_NOW,
+    'day'
+  )
   return minDate.format('YYYY-MM-DD')
 }
 
@@ -81,10 +87,13 @@ export const financingSchema = yup.object().shape({
     .required('Start date is required')
     .test(
       'min-start-date',
-      'Start date must be at least 15 days from today',
+      'Start date must be at least 15 days from July 1st, 2025',
       function (value) {
         if (!value) return false
-        const minDate = dayjs().add(VALIDITY_PERIOD.MIN_DAYS_FROM_NOW, 'day')
+        const minDate = dayjs(SUBMISSION_DATE).add(
+          VALIDITY_PERIOD.MIN_DAYS_FROM_NOW,
+          'day'
+        )
         const selectedDate = dayjs(value)
         return selectedDate.isSameOrAfter(minDate, 'day')
       }
